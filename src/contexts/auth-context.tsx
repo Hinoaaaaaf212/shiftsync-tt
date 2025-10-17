@@ -133,6 +133,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      // Debug: Log current state for comparison
+      console.log('[AuthContext] DEBUG - Current user ID:', user?.id)
+      console.log('[AuthContext] DEBUG - Incoming session user ID:', session?.user?.id)
+      console.log('[AuthContext] DEBUG - Are they equal?', session?.user?.id === user?.id)
+
       // Check if this is the same user (e.g., tab focus re-detecting session)
       // If so, update session silently without showing loading screen
       if (session?.user?.id && session.user.id === user?.id) {
@@ -143,6 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // For actual user changes (new login, different user), show loading state
+      console.log('[AuthContext] Different user or new login, showing loading state')
       setLoading(true)
       setSession(session)
       setUser(session?.user ?? null)
