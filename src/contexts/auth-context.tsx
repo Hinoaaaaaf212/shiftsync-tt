@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { Employee, Restaurant } from '@/lib/database.types'
@@ -27,6 +27,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Track current user ID in a ref for immediate comparison (not dependent on state updates)
+  const currentUserIdRef = useRef<string | null>(null)
 
   // Load employee and restaurant data
   const loadEmployeeData = async (userId: string) => {
@@ -95,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setSession(session)
       setUser(session?.user ?? null)
+      currentUserIdRef.current = session?.user?.id ?? null
 
       // Wait for employee data to load BEFORE setting loading to false
       if (session?.user) {
@@ -115,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
         setSession(null)
         setUser(null)
+        currentUserIdRef.current = null
         setEmployee(null)
         setRestaurant(null)
         setLoading(false)
@@ -130,20 +135,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'TOKEN_REFRESHED') {
         setSession(session)
         setUser(session?.user ?? null)
+        currentUserIdRef.current = session?.user?.id ?? null
         return
       }
 
       // Debug: Log current state for comparison
-      console.log('[AuthContext] DEBUG - Current user ID:', user?.id)
+      console.log('[AuthContext] DEBUG - Current user ID (ref):', currentUserIdRef.current)
       console.log('[AuthContext] DEBUG - Incoming session user ID:', session?.user?.id)
-      console.log('[AuthContext] DEBUG - Are they equal?', session?.user?.id === user?.id)
+      console.log('[AuthContext] DEBUG - Are they equal?', session?.user?.id === currentUserIdRef.current)
 
       // Check if this is the same user (e.g., tab focus re-detecting session)
       // If so, update session silently without showing loading screen
-      if (session?.user?.id && session.user.id === user?.id) {
+      if (session?.user?.id && session.user.id === currentUserIdRef.current) {
         console.log('[AuthContext] Same user detected, updating session silently')
         setSession(session)
         setUser(session.user)
+        // currentUserIdRef.current stays the same (already set)
         return
       }
 
@@ -152,6 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true)
       setSession(session)
       setUser(session?.user ?? null)
+      currentUserIdRef.current = session?.user?.id ?? null
 
       // Wait for employee data to load BEFORE setting loading to false
       if (session?.user) {
