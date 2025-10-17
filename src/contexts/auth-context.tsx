@@ -126,7 +126,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // For other auth changes, set loading state
+      // Skip TOKEN_REFRESHED event - no need to show loading state for background token refresh
+      if (event === 'TOKEN_REFRESHED') {
+        setSession(session)
+        setUser(session?.user ?? null)
+        return
+      }
+
+      // For other auth changes (SIGNED_IN, PASSWORD_RECOVERY, etc), set loading state
       setLoading(true)
       setSession(session)
       setUser(session?.user ?? null)
