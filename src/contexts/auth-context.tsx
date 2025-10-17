@@ -133,7 +133,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      // For other auth changes (SIGNED_IN, PASSWORD_RECOVERY, etc), set loading state
+      // Check if this is the same user (e.g., tab focus re-detecting session)
+      // If so, update session silently without showing loading screen
+      if (session?.user?.id && session.user.id === user?.id) {
+        console.log('[AuthContext] Same user detected, updating session silently')
+        setSession(session)
+        setUser(session.user)
+        return
+      }
+
+      // For actual user changes (new login, different user), show loading state
       setLoading(true)
       setSession(session)
       setUser(session?.user ?? null)
