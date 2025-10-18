@@ -31,7 +31,10 @@ export async function POST(request: NextRequest) {
 
       if (authError) {
         console.error('Error deleting auth user:', authError)
-        // Continue even if auth deletion fails - employee record should still be deleted
+        return NextResponse.json(
+          { error: `Failed to delete user account: ${authError.message}` },
+          { status: 400 }
+        )
       }
     }
 
