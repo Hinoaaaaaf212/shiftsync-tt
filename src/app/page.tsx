@@ -15,15 +15,22 @@ import { SlideIn } from '@/components/animations/slide-in'
 
 export default function HomePage() {
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, employee, restaurant, loading } = useAuth()
   const [demoDate] = useState(new Date())
 
-  // Redirect to dashboard if user is already logged in
+  // Redirect authenticated users
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard')
+      // Check if user has completed setup
+      if (employee || restaurant) {
+        // User has completed setup - go to dashboard
+        router.push('/dashboard')
+      } else {
+        // New user needs to complete setup
+        router.push('/auth/setup-restaurant')
+      }
     }
-  }, [user, loading, router])
+  }, [user, loading, employee, restaurant, router])
 
   return (
     <div className="min-h-screen bg-gray-50">
