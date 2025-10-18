@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, UserPlus, Save } from 'lucide-react'
+import { ArrowLeft, UserPlus, Save, Check } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,7 @@ export default function AddEmployeePage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [employeeCredentials, setEmployeeCredentials] = useState<{ email: string; password: string } | null>(null)
+  const [copiedField, setCopiedField] = useState<'email' | 'password' | null>(null)
 
   // Redirect if not authenticated or not a manager
   useEffect(() => {
@@ -53,6 +54,12 @@ export default function AddEmployeePage() {
       router.push('/dashboard')
     }
   }, [user, employee, restaurant, loading, router])
+
+  const handleCopy = async (text: string, field: 'email' | 'password') => {
+    await navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000) // Reset after 2 seconds
+  }
 
   const handleInputChange = (field: keyof EmployeeFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -230,11 +237,17 @@ export default function AddEmployeePage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(employeeCredentials.email)
-                        }}
+                        onClick={() => handleCopy(employeeCredentials.email, 'email')}
+                        className={copiedField === 'email' ? 'bg-green-50 border-green-500 text-green-700' : ''}
                       >
-                        Copy
+                        {copiedField === 'email' ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1" />
+                            Copied!
+                          </>
+                        ) : (
+                          'Copy'
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -250,11 +263,17 @@ export default function AddEmployeePage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => {
-                          navigator.clipboard.writeText(employeeCredentials.password)
-                        }}
+                        onClick={() => handleCopy(employeeCredentials.password, 'password')}
+                        className={copiedField === 'password' ? 'bg-green-50 border-green-500 text-green-700' : ''}
                       >
-                        Copy
+                        {copiedField === 'password' ? (
+                          <>
+                            <Check className="w-4 h-4 mr-1" />
+                            Copied!
+                          </>
+                        ) : (
+                          'Copy'
+                        )}
                       </Button>
                     </div>
                   </div>
