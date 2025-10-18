@@ -172,7 +172,7 @@ export default function SetupRestaurantPage() {
                 type="text"
                 value={restaurantData.name}
                 onChange={handleChange}
-                placeholder="Trini Flavors"
+                placeholder="Your Business Name"
                 className="input"
                 required
               />

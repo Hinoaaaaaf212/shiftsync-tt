@@ -1018,6 +1018,156 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Danger Zone - Delete Account */}
+        <Card className="border-red-200 bg-red-50 mt-6">
+          <CardHeader>
+            <CardTitle className="text-red-900 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription className="text-red-700">
+              Permanent deletion options - these actions cannot be undone
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Delete Business (Manager Only) */}
+            {employee.role === 'manager' && restaurant.owner_email === employee.email && (
+              <div className="pb-6 border-b border-red-200">
+                <h3 className="text-sm font-semibold text-red-900 mb-3">Delete Business</h3>
+                <Alert className="bg-red-100 border-red-300 mb-4">
+                  <AlertCircle className="w-4 h-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    <strong>Warning:</strong> Deleting your business will permanently remove:
+                    <ul className="list-disc list-inside mt-2 space-y-1">
+                      <li>All employee records and their accounts</li>
+                      <li>All shifts, schedules, and templates</li>
+                      <li>All time-off requests and swap requests</li>
+                      <li>Business hours and staffing requirements</li>
+                      <li>The business itself and all associated data</li>
+                    </ul>
+                    <p className="mt-2 font-semibold">After deleting the business, you'll be able to delete your own account.</p>
+                  </AlertDescription>
+                </Alert>
+
+                <Button
+                  variant="outline"
+                  className="w-full bg-red-700 text-white hover:bg-red-800 border-red-700"
+                  onClick={async () => {
+                    if (!confirm('Are you absolutely sure you want to delete your entire business and ALL associated data? This will affect all your employees and cannot be undone.\n\nType DELETE BUSINESS in the next prompt to confirm.')) {
+                      return
+                    }
+
+                    const confirmation = prompt('Type DELETE BUSINESS to confirm:')
+                    if (confirmation !== 'DELETE BUSINESS') {
+                      alert('Business deletion cancelled. You must type DELETE BUSINESS exactly to confirm.')
+                      return
+                    }
+
+                    setError(null)
+                    setSuccess(null)
+                    setIsUpdating(true)
+
+                    try {
+                      const response = await fetch('/api/restaurant/delete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          restaurantId: restaurant.id,
+                          ownerEmail: restaurant.owner_email
+                        })
+                      })
+
+                      const result = await response.json()
+
+                      if (!response.ok) {
+                        throw new Error(result.error || 'Failed to delete business')
+                      }
+
+                      // Sign out and redirect to home
+                      await supabase.auth.signOut()
+                      router.push('/')
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Failed to delete business')
+                      setIsUpdating(false)
+                    }
+                  }}
+                  disabled={isUpdating}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  {isUpdating ? 'Deleting Business...' : 'Delete Business & All Data'}
+                </Button>
+              </div>
+            )}
+
+            {/* Delete Personal Account */}
+            <div>
+              <h3 className="text-sm font-semibold text-red-900 mb-3">Delete Personal Account</h3>
+              <Alert className="bg-red-100 border-red-300 mb-4">
+                <AlertCircle className="w-4 h-4 text-red-600" />
+                <AlertDescription className="text-red-800">
+                  <strong>Warning:</strong> Deleting your account will permanently remove:
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Your employee profile and login access</li>
+                    <li>Your shift assignments and availability preferences</li>
+                    <li>All associated personal information</li>
+                    {employee.role === 'manager' && restaurant.owner_email === employee.email && (
+                      <li className="font-semibold text-red-900">⚠️ You must delete the business first (see above)</li>
+                    )}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+
+              <Button
+                variant="outline"
+                className="w-full bg-red-600 text-white hover:bg-red-700 border-red-600"
+                onClick={async () => {
+                  if (!confirm('Are you absolutely sure you want to delete your account? This action cannot be undone.\n\nType DELETE in the next prompt to confirm.')) {
+                    return
+                  }
+
+                  const confirmation = prompt('Type DELETE to confirm account deletion:')
+                  if (confirmation !== 'DELETE') {
+                    alert('Account deletion cancelled. You must type DELETE exactly to confirm.')
+                    return
+                  }
+
+                  setError(null)
+                  setSuccess(null)
+                  setIsUpdating(true)
+
+                  try {
+                    const response = await fetch('/api/employees/delete', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        userId: user.id,
+                        employeeId: employee.id
+                      })
+                    })
+
+                    const result = await response.json()
+
+                    if (!response.ok) {
+                      throw new Error(result.error || 'Failed to delete account')
+                    }
+
+                    // Sign out and redirect to home
+                    await supabase.auth.signOut()
+                    router.push('/')
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Failed to delete account')
+                    setIsUpdating(false)
+                  }
+                }}
+                disabled={isUpdating}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {isUpdating ? 'Deleting Account...' : 'Delete My Account'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Trinidad-specific notice */}
         <Alert className="alert-info mt-6">
           <Settings className="w-4 h-4" />
