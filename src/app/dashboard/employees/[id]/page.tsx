@@ -272,17 +272,25 @@ export default function EmployeeDetailsPage() {
   const handleDelete = async () => {
     if (!employee) return
 
-    if (!confirm('Are you sure you want to delete this employee? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this employee? This will delete their employee record and login account. This action cannot be undone.')) {
       return
     }
 
     try {
-      const { error } = await supabase
-        .from('employees')
-        .delete()
-        .eq('id', employee.id)
+      const response = await fetch('/api/employees/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: employee.id,
+          userId: employee.user_id
+        })
+      })
 
-      if (error) throw error
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete employee')
+      }
 
       router.push('/dashboard/employees')
     } catch (err) {
