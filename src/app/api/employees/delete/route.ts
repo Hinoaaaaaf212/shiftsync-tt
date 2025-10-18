@@ -54,7 +54,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Step 3: Delete the auth user if it exists
+    // Step 3: Check if employee has any upcoming shifts
+    const today = new Date().toISOString().split('T')[0]
+    const { data: upcomingShifts, error: shiftsError } = await supabaseAdmin
+      .from('shifts')
+      .select('id, date, start_time, end_time')
+      .eq('employee_id', employeeId)
+      .gte('date', today)
+      .limit(1)
+
+    if (shiftsError) {
+      console.error('Error checking upcoming shifts:', shiftsError)
+      // Don't block deletion if we can't check - log the error but continue
+    }
+
+    if (upcomingShifts && upcomingShifts.length > 0) {
+      return NextResponse.json(
+        { error: 'Cannot delete account: You have upcoming shifts scheduled. Please contact your manager to reassign your shifts before deleting your account.' },
+        { status: 400 }
+      )
+    }
+
+    // Step 4: Delete the auth user if it exists
     if (userId) {
       const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
@@ -67,7 +88,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Step 4: Delete the employee record
+    // Step 5: Delete the employee record
     const { error: deleteError } = await supabaseAdmin
       .from('employees')
       .delete()
