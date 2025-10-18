@@ -36,66 +36,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loadEmployeeData = async (userId: string) => {
     console.log('[AuthContext] loadEmployeeData START for userId:', userId)
     try {
-      // Get employee record
+      // Get employee record with timeout
       console.log('[AuthContext] Querying employees table...')
-      const { data: employeeData, error: employeeError } = await supabase
+
+      // Create a timeout promise
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Query timeout after 5 seconds')), 5000)
+      )
+
+      const query = supabase
         .from('employees')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle()
 
-      console.log('[AuthContext] Employee query result:', { employeeData: employeeData?.id, error: employeeError })
+      const result = await Promise.race([query, timeout]) as any
 
-      if (employeeError) {
-        console.error('[AuthContext] Error loading employee:', employeeError.message)
-        return
+      console.log('[AuthContext] Employee query result:', { employeeData: result.data?.id, error: result.error })
+
+      if (result.error && result.error.code !== 'PGRST116') {
+        // PGRST116 is "no rows returned" which is fine for new users
+        console.error('[AuthContext] Error loading employee:', result.error.message)
+        console.error('[AuthContext] Error details:', result.error)
+        // Don't return - continue with null employee
       }
 
       // Set employee data (could be null for new users)
-      setEmployee(employeeData)
-      console.log('[AuthContext] Employee state set:', employeeData ? 'has data' : 'null')
+      setEmployee(result.data || null)
+      console.log('[AuthContext] Employee state set:', result.data ? 'has data' : 'null')
+
+      const employeeData = result.data
 
       // Get restaurant data
       if (employeeData?.restaurant_id) {
         console.log('[AuthContext] Employee has restaurant_id, querying restaurant...')
-        const { data: restaurantData, error: restaurantError } = await supabase
+
+        const restaurantTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Restaurant query timeout')), 5000)
+        )
+
+        const restaurantQuery = supabase
           .from('restaurants')
           .select('*')
           .eq('id', employeeData.restaurant_id)
           .single()
 
-        if (restaurantError) {
-          console.error('[AuthContext] Error loading restaurant:', restaurantError.message)
-          return
-        }
+        try {
+          const restaurantResult = await Promise.race([restaurantQuery, restaurantTimeout]) as any
 
-        setRestaurant(restaurantData)
-        console.log('[AuthContext] Restaurant state set')
+          if (restaurantResult.error) {
+            console.error('[AuthContext] Error loading restaurant:', restaurantResult.error.message)
+          } else {
+            setRestaurant(restaurantResult.data)
+            console.log('[AuthContext] Restaurant state set')
+          }
+        } catch (err) {
+          console.error('[AuthContext] Restaurant query timeout or error:', err)
+        }
       } else if (!employeeData) {
         console.log('[AuthContext] No employee data, checking for owned restaurant...')
         // New user with no employee record - check if they own a restaurant
         const userEmail = (await supabase.auth.getUser()).data.user?.email || ''
         console.log('[AuthContext] Checking restaurants with owner_email:', userEmail)
 
-        const { data: ownedRestaurant, error: restaurantError } = await supabase
+        const ownedRestaurantTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Owned restaurant query timeout')), 5000)
+        )
+
+        const ownedRestaurantQuery = supabase
           .from('restaurants')
           .select('*')
           .eq('owner_email', userEmail)
           .maybeSingle()
 
-        console.log('[AuthContext] Owned restaurant query result:', { restaurant: ownedRestaurant?.id, error: restaurantError })
+        try {
+          const ownedRestaurantResult = await Promise.race([ownedRestaurantQuery, ownedRestaurantTimeout]) as any
 
-        if (ownedRestaurant) {
-          setRestaurant(ownedRestaurant)
-          console.log('[AuthContext] Owned restaurant state set')
-        } else {
-          console.log('[AuthContext] No owned restaurant found')
+          console.log('[AuthContext] Owned restaurant query result:', { restaurant: ownedRestaurantResult.data?.id, error: ownedRestaurantResult.error })
+
+          if (ownedRestaurantResult.data) {
+            setRestaurant(ownedRestaurantResult.data)
+            console.log('[AuthContext] Owned restaurant state set')
+          } else {
+            console.log('[AuthContext] No owned restaurant found')
+          }
+        } catch (err) {
+          console.error('[AuthContext] Owned restaurant query timeout or error:', err)
         }
       }
 
       console.log('[AuthContext] loadEmployeeData COMPLETE')
     } catch (error) {
       console.error('[AuthContext] Exception in loadEmployeeData:', error)
+      // Make sure we don't leave loading stuck even if there's an error
+      console.log('[AuthContext] Continuing despite error...')
     }
   }
 
