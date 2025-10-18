@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,18 @@ export default function SignUpPage() {
   const [error, setError] = useState('')
   const [emailVerificationPending, setEmailVerificationPending] = useState(false)
   const [userEmail, setUserEmail] = useState('')
+  const [lastResendTime, setLastResendTime] = useState<number>(0)
+  const [resendCooldown, setResendCooldown] = useState<number>(0)
+
+  // Cooldown timer effect
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(resendCooldown - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendCooldown])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -65,6 +77,15 @@ export default function SignUpPage() {
   }
 
   const handleResendEmail = async () => {
+    // Check cooldown (60 seconds)
+    const now = Date.now()
+    const timeSinceLastResend = now - lastResendTime
+    if (timeSinceLastResend < 60000) {
+      const remainingSeconds = Math.ceil((60000 - timeSinceLastResend) / 1000)
+      setError(`Please wait ${remainingSeconds} seconds before resending`)
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -78,8 +99,15 @@ export default function SignUpPage() {
       })
 
       if (resendError) {
-        setError(resendError)
+        // Show user-friendly message for rate limit
+        if (resendError.toLowerCase().includes('rate limit')) {
+          setError('Too many attempts. Please wait an hour and try again, or contact support if urgent.')
+        } else {
+          setError(resendError)
+        }
       } else {
+        setLastResendTime(now)
+        setResendCooldown(60)
         setError('') // Clear any previous errors
         // Show success message briefly
         alert('Verification email resent! Please check your inbox.')
@@ -114,7 +142,12 @@ export default function SignUpPage() {
       })
 
       if (signUpError) {
-        setError(signUpError)
+        // Show user-friendly message for rate limit
+        if (signUpError.toLowerCase().includes('rate limit')) {
+          setError('Too many sign-up attempts. Please wait an hour before trying again. If urgent, contact support.')
+        } else {
+          setError(signUpError)
+        }
         return
       }
 
@@ -187,7 +220,7 @@ export default function SignUpPage() {
               </p>
               <Button
                 onClick={handleResendEmail}
-                disabled={loading}
+                disabled={loading || resendCooldown > 0}
                 className="btn btn-outline w-full"
                 type="button"
               >
@@ -196,6 +229,8 @@ export default function SignUpPage() {
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Resending...
                   </>
+                ) : resendCooldown > 0 ? (
+                  `Wait ${resendCooldown}s to resend`
                 ) : (
                   'Resend Verification Email'
                 )}
