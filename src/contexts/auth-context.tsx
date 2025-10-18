@@ -253,6 +253,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: emailCheck.error || 'This email is already registered. Please sign in instead.' }
       }
 
+      console.log('[AuthContext] Calling supabase.auth.signUp...')
+      console.log('[AuthContext] emailRedirectTo:', `${window.location.origin}/auth/callback`)
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -263,18 +266,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       })
 
-      console.log('[AuthContext] SignUp response:', { data, error })
+      console.log('[AuthContext] SignUp response:', {
+        user: data.user?.id,
+        email: data.user?.email,
+        emailConfirmedAt: data.user?.email_confirmed_at,
+        session: !!data.session,
+        error: error
+      })
 
       if (error) {
         console.error('[AuthContext] SignUp error:', error)
         return { error: error.message }
       }
 
-      // Log whether confirmation email was sent
+      // CRITICAL: Log whether email confirmation is required
       if (data.user && !data.session) {
-        console.log('[AuthContext] User created, confirmation email should be sent to:', email)
+        console.log('[AuthContext] ✅ User created WITHOUT immediate session - email confirmation required')
+        console.log('[AuthContext] Confirmation email should be sent to:', email)
+        console.log('[AuthContext] User must click verification link to continue')
       } else if (data.session) {
-        console.log('[AuthContext] User created with immediate session (email confirmation may be disabled)')
+        console.warn('[AuthContext] ⚠️ WARNING: User created WITH immediate session!')
+        console.warn('[AuthContext] This means email confirmation is DISABLED in Supabase')
+        console.warn('[AuthContext] Go to Supabase Dashboard → Authentication → Email Auth')
+        console.warn('[AuthContext] Enable "Confirm email" to require email verification')
       }
 
       return {}
