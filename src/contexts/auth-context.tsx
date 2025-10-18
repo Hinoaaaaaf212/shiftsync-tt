@@ -17,6 +17,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error?: string }>
   updateProfile: (updates: Partial<Employee>) => Promise<{ error?: string }>
   refreshProfile: () => Promise<void>
+  checkEmailExists: (email: string) => Promise<{ exists: boolean; error?: string }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -176,6 +177,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  const checkEmailExists = async (email: string) => {
+    try {
+      console.log('[AuthContext] Checking if email exists:', email)
+
+      // Check if email exists in employees table (case-insensitive)
+      const { data: employeeData, error: employeeError } = await supabase
+        .from('employees')
+        .select('id, email')
+        .ilike('email', email)
+        .maybeSingle()
+
+      if (employeeError && employeeError.code !== 'PGRST116') {
+        // PGRST116 is "no rows returned" which is fine
+        console.error('[AuthContext] Error checking employees:', employeeError)
+        return { exists: false, error: 'Failed to check email availability' }
+      }
+
+      if (employeeData) {
+        console.log('[AuthContext] Email found in employees table:', employeeData.email)
+        return { exists: true, error: 'This email is already registered as an employee. Please sign in instead.' }
+      }
+
+      // Check if email exists in restaurants table (as owner) - case-insensitive
+      const { data: restaurantData, error: restaurantError } = await supabase
+        .from('restaurants')
+        .select('id, owner_email')
+        .ilike('owner_email', email)
+        .maybeSingle()
+
+      if (restaurantError && restaurantError.code !== 'PGRST116') {
+        console.error('[AuthContext] Error checking restaurants:', restaurantError)
+        return { exists: false, error: 'Failed to check email availability' }
+      }
+
+      if (restaurantData) {
+        console.log('[AuthContext] Email found in restaurants table:', restaurantData.owner_email)
+        return { exists: true, error: 'This email is already registered as a restaurant owner. Please sign in instead.' }
+      }
+
+      console.log('[AuthContext] Email is available')
+      return { exists: false }
+    } catch (error) {
+      console.error('[AuthContext] Exception checking email:', error)
+      return { exists: false, error: 'Failed to check email availability' }
+    }
+  }
+
   const signIn = async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -196,20 +244,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata?: any) => {
     try {
-      const { error } = await supabase.auth.signUp({
+      console.log('[AuthContext] Signing up user:', email)
+
+      // Check if email already exists in database first
+      const emailCheck = await checkEmailExists(email)
+      if (emailCheck.exists) {
+        console.error('[AuthContext] Email already exists')
+        return { error: emailCheck.error || 'This email is already registered. Please sign in instead.' }
+      }
+
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: metadata,
+          // CRITICAL: Tell Supabase where to redirect after email confirmation
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
+      console.log('[AuthContext] SignUp response:', { data, error })
+
       if (error) {
+        console.error('[AuthContext] SignUp error:', error)
         return { error: error.message }
+      }
+
+      // Log whether confirmation email was sent
+      if (data.user && !data.session) {
+        console.log('[AuthContext] User created, confirmation email should be sent to:', email)
+      } else if (data.session) {
+        console.log('[AuthContext] User created with immediate session (email confirmation may be disabled)')
       }
 
       return {}
     } catch (error) {
+      console.error('[AuthContext] SignUp exception:', error)
       return { error: 'An unexpected error occurred' }
     }
   }
@@ -281,6 +351,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetPassword,
     updateProfile,
     refreshProfile,
+    checkEmailExists,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ShiftSync TT - Smart Scheduling for Businesses in Trinidad and Tobago",
+  title: "ShiftSync TT - The Smarter Way to Schedule",
   description: "Employee scheduling system built specifically for Trinidad & Tobago businesses. Manage shifts, employees, and schedules with ease.",
   keywords: ["business", "scheduling", "trinidad", "tobago", "employee management", "shifts", "restaurant"],
   authors: [{ name: "ShiftSync TT" }],
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     title: "ShiftSync TT",
   },
   openGraph: {
-    title: "ShiftSync TT - Smart Scheduling for Businesses in Trinidad and Tobago",
+    title: "ShiftSync TT - The Smarter Way to Schedule",
     description: "Employee scheduling system built specifically for Trinidad & Tobago businesses.",
     locale: "en_TT",
   },

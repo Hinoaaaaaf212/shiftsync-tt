@@ -64,7 +64,7 @@ export default function HomePage() {
 
           {/* Staggered Text Animations */}
           <h1 className="text-4xl font-bold text-gray-900 mb-6 animate-slide-up">
-            Smart Scheduling for Businesses in Trinidad and Tobago
+            The Smarter Way to Schedule
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto animate-slide-up animation-delay-200">
             Manage your business staff schedules with ease. Built specifically for Trinidad & Tobago

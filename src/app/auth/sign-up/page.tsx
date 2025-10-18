@@ -29,6 +29,8 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailVerificationPending, setEmailVerificationPending] = useState(false)
+  const [userEmail, setUserEmail] = useState('')
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -62,6 +64,33 @@ export default function SignUpPage() {
     return null
   }
 
+  const handleResendEmail = async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const { error: resendError } = await signUp(formData.email, formData.password, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        restaurant_name: formData.restaurantName,
+        phone: formData.phone,
+        role: 'manager'
+      })
+
+      if (resendError) {
+        setError(resendError)
+      } else {
+        setError('') // Clear any previous errors
+        // Show success message briefly
+        alert('Verification email resent! Please check your inbox.')
+      }
+    } catch (error) {
+      setError('Failed to resend email. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -89,14 +118,103 @@ export default function SignUpPage() {
         return
       }
 
-      // Redirect to onboarding/setup flow
-      router.push('/auth/setup-restaurant')
+      // Show email verification message instead of redirecting
+      // User needs to verify their email before they can continue
+      setUserEmail(formData.email)
+      setEmailVerificationPending(true)
 
     } catch (error) {
       setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
+  }
+
+  // If email verification is pending, show verification message
+  if (emailVerificationPending) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-center">Check Your Email</CardTitle>
+          <CardDescription className="text-center">
+            We've sent a verification link to your email
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto">
+              <svg
+                className="w-8 h-8 text-primary-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-gray-700">
+                We sent a verification email to:
+              </p>
+              <p className="font-semibold text-gray-900">{userEmail}</p>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-left">
+              <p className="font-medium text-blue-900 mb-2">Next steps:</p>
+              <ol className="list-decimal list-inside space-y-1 text-blue-800">
+                <li>Check your email inbox (and spam folder)</li>
+                <li>Click the verification link in the email</li>
+                <li>You'll be redirected back to complete your setup</li>
+              </ol>
+            </div>
+
+            {error && (
+              <Alert className="alert-error">
+                <AlertCircle className="w-4 h-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            <div className="space-y-3 pt-4">
+              <p className="text-sm text-gray-600">
+                Didn't receive the email?
+              </p>
+              <Button
+                onClick={handleResendEmail}
+                disabled={loading}
+                className="btn btn-outline w-full"
+                type="button"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Resending...
+                  </>
+                ) : (
+                  'Resend Verification Email'
+                )}
+              </Button>
+            </div>
+
+            <div className="text-center text-sm text-gray-600 pt-4 border-t">
+              Wrong email?{' '}
+              <button
+                onClick={() => setEmailVerificationPending(false)}
+                className="text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Go back and try again
+              </button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -112,7 +230,20 @@ export default function SignUpPage() {
           {error && (
             <Alert className="alert-error">
               <AlertCircle className="w-4 h-4" />
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {error}
+                {error.toLowerCase().includes('already registered') && (
+                  <>
+                    {' '}
+                    <Link
+                      href="/auth/login"
+                      className="underline font-medium hover:text-red-800"
+                    >
+                      Sign in here
+                    </Link>
+                  </>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
