@@ -2,57 +2,45 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/contexts/auth-context'
 import { Loader2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function AuthCallbackPage() {
   const router = useRouter()
+  const { user, loading } = useAuth()
   const [error, setError] = useState<string | null>(null)
+  const [hasRedirected, setHasRedirected] = useState(false)
 
   useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        console.log('[AUTH CALLBACK] Starting email verification callback...')
+    console.log('[AUTH CALLBACK] Page loaded')
+    console.log('[AUTH CALLBACK] Supabase will automatically handle PKCE code exchange')
+  }, [])
 
-        // The Supabase client will automatically handle the PKCE flow
-        // It will exchange the code for a session using the code_verifier from localStorage
-        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
-
-        if (sessionError) {
-          console.error('[AUTH CALLBACK] Error getting session:', sessionError)
-          setError(sessionError.message)
-          setTimeout(() => router.push('/auth/login'), 3000)
-          return
-        }
-
-        console.log('[AUTH CALLBACK] Session retrieved:', !!sessionData.session)
-
-        // Check if we have a user now
-        const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-        if (userError || !user) {
-          console.error('[AUTH CALLBACK] Error getting user:', userError)
-          setError('Verification failed. Please try again.')
-          setTimeout(() => router.push('/auth/login'), 3000)
-          return
-        }
-
-        console.log('[AUTH CALLBACK] User verified successfully:', user.email)
-        console.log('[AUTH CALLBACK] Email confirmed at:', user.email_confirmed_at)
-
-        // Success! Redirect to setup
-        console.log('[AUTH CALLBACK] Redirecting to setup-restaurant')
-        router.push('/auth/setup-restaurant')
-      } catch (err) {
-        console.error('[AUTH CALLBACK] Unexpected error:', err)
-        setError('An unexpected error occurred')
-        setTimeout(() => router.push('/auth/login'), 3000)
-      }
+  // Wait for auth state to update, then redirect
+  useEffect(() => {
+    if (loading) {
+      console.log('[AUTH CALLBACK] Waiting for auth state...')
+      return
     }
 
-    handleCallback()
-  }, [router])
+    if (hasRedirected) {
+      return
+    }
+
+    if (user) {
+      console.log('[AUTH CALLBACK] User authenticated:', user.email)
+      console.log('[AUTH CALLBACK] Email confirmed at:', user.email_confirmed_at)
+      console.log('[AUTH CALLBACK] Redirecting to setup-restaurant...')
+
+      setHasRedirected(true)
+      router.push('/auth/setup-restaurant')
+    } else {
+      console.error('[AUTH CALLBACK] No user found after auth callback')
+      setError('Email verification failed. Please try signing up again.')
+      setTimeout(() => router.push('/auth/sign-up'), 3000)
+    }
+  }, [user, loading, router, hasRedirected])
 
   if (error) {
     return (
