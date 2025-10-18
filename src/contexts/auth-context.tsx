@@ -34,24 +34,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Load employee and restaurant data
   const loadEmployeeData = async (userId: string) => {
+    console.log('[AuthContext] loadEmployeeData START for userId:', userId)
     try {
       // Get employee record
+      console.log('[AuthContext] Querying employees table...')
       const { data: employeeData, error: employeeError } = await supabase
         .from('employees')
         .select('*')
         .eq('user_id', userId)
         .maybeSingle()
 
+      console.log('[AuthContext] Employee query result:', { employeeData: employeeData?.id, error: employeeError })
+
       if (employeeError) {
-        console.error('Error loading employee:', employeeError.message)
+        console.error('[AuthContext] Error loading employee:', employeeError.message)
         return
       }
 
       // Set employee data (could be null for new users)
       setEmployee(employeeData)
+      console.log('[AuthContext] Employee state set:', employeeData ? 'has data' : 'null')
 
       // Get restaurant data
       if (employeeData?.restaurant_id) {
+        console.log('[AuthContext] Employee has restaurant_id, querying restaurant...')
         const { data: restaurantData, error: restaurantError } = await supabase
           .from('restaurants')
           .select('*')
@@ -59,25 +65,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .single()
 
         if (restaurantError) {
-          console.error('Error loading restaurant:', restaurantError.message)
+          console.error('[AuthContext] Error loading restaurant:', restaurantError.message)
           return
         }
 
         setRestaurant(restaurantData)
+        console.log('[AuthContext] Restaurant state set')
       } else if (!employeeData) {
+        console.log('[AuthContext] No employee data, checking for owned restaurant...')
         // New user with no employee record - check if they own a restaurant
-        const { data: ownedRestaurant } = await supabase
+        const userEmail = (await supabase.auth.getUser()).data.user?.email || ''
+        console.log('[AuthContext] Checking restaurants with owner_email:', userEmail)
+
+        const { data: ownedRestaurant, error: restaurantError } = await supabase
           .from('restaurants')
           .select('*')
-          .eq('owner_email', (await supabase.auth.getUser()).data.user?.email || '')
+          .eq('owner_email', userEmail)
           .maybeSingle()
+
+        console.log('[AuthContext] Owned restaurant query result:', { restaurant: ownedRestaurant?.id, error: restaurantError })
 
         if (ownedRestaurant) {
           setRestaurant(ownedRestaurant)
+          console.log('[AuthContext] Owned restaurant state set')
+        } else {
+          console.log('[AuthContext] No owned restaurant found')
         }
       }
+
+      console.log('[AuthContext] loadEmployeeData COMPLETE')
     } catch (error) {
-      console.error('Error in loadEmployeeData:', error)
+      console.error('[AuthContext] Exception in loadEmployeeData:', error)
     }
   }
 
@@ -164,13 +182,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Wait for employee data to load BEFORE setting loading to false
       if (session?.user) {
+        console.log('[AuthContext] Calling loadEmployeeData...')
         await loadEmployeeData(session.user.id)
+        console.log('[AuthContext] loadEmployeeData returned')
       } else {
         setEmployee(null)
         setRestaurant(null)
       }
 
       // Now that everything is loaded, set loading to false
+      console.log('[AuthContext] Setting loading to false')
       setLoading(false)
     })
 
